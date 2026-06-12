@@ -1,7 +1,7 @@
 [project]
 name = "doc-rag"
 version = "0.1.0"
-description = "Add your description here"
+description = "A document question-answering system that lets you upload text documents and ask questions about them. It uses retrieval-augmented generation (RAG) to ground answers in your actual data instead of making things up."
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
