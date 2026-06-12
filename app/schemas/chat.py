@@ -4,26 +4,12 @@
 from pydantic import BaseModel
 from app.schemas.query import SourceInfo
 
-# Shape of the POST /chat request body.
+
+class ChatRequest(BaseModel):  # Shape of the POST /chat request body.
+    message: str  # the user's message or question
 
 
-class ChatRequest(BaseModel):
-    message: str  # the user's message / question
-
-# One chunk that was retrieved from the knowledge base, with its similarity score.
-
-
-class RetrievedChunkInfo(BaseModel):
-    chunk_id: int
-    document_id: int
-    document_title: str
-    chunk_text: str
-    similarity_score: float  # 0.0 to 1.0 — higher means more relevant
-
-# Shape of the POST /chat response body.
-
-
-class ChatResponse(BaseModel):
+class ChatResponse(BaseModel):  # Shape of the POST /chat response body.
     answer: str                                      # the final generated answer
     intent: str                                      # Simple / Knowledge / Multi-Step
     # which chunks the LLM cited
@@ -32,3 +18,12 @@ class ChatResponse(BaseModel):
     retrieved_chunks: list[RetrievedChunkInfo] = []
     # only populated for Multi-Step
     sub_questions: list[str] = []
+
+
+# One chunk that was retrieved from the knowledge base, with its similarity score.
+class RetrievedChunkInfo(BaseModel):
+    chunk_id: int
+    document_id: int
+    document_title: str
+    chunk_text: str
+    similarity_score: float  # 0.0 to 1.0 — higher means more relevant

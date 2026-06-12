@@ -12,10 +12,10 @@ load_dotenv()
 # Read the database URL from the environment
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Create the SQLAlchemy engine (the core connection to the database)
+# Create the SQLAlchemy engine
 engine = create_engine(DATABASE_URL, echo=True, pool_pre_ping=True)
 
-# Create a session factory — each call to Session() gives a new session
+# Create a session factory (each call to Session() gives a new session)
 Session = sessionmaker(bind=engine)
 
 

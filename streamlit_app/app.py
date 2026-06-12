@@ -10,11 +10,13 @@ import json
 API_BASE = "http://localhost:8000"
 
 # PAGE SETUP
+
 st.set_page_config(
     page_title="Doc RAG Chat",
 )
 
 # SESSION STATE — keeps chat history across reruns
+
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -47,7 +49,7 @@ with st.sidebar:
     )
     json_submit = st.button("Upload JSON File", use_container_width=True)
 
-    # Optional manual input as fallback
+    # Optional manual input
     with st.expander("Or paste text manually"):
         manual_title = st.text_input("Document title")
         manual_content = st.text_area("Document content", height=150)

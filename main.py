@@ -15,5 +15,5 @@ load_index()
 # Create the FastAPI application
 app = FastAPI(title="Doc RAG API")
 
-# Register routes (documents + chat endpoints)
+# Register routes
 app.include_router(api_router)

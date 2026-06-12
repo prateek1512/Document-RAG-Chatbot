@@ -10,12 +10,14 @@ from app.services.gemini_service import gemini_client
 load_dotenv()
 
 
-# 1. EMBEDDING CONFIG
+# EMBEDDING CONFIG
+
 EMBEDDING_MODEL = "gemini-embedding-001"
 EMBEDDING_DIM = 768
 
 
-# 2. SET UP THE PINECONE CLIENT + INDEX
+# SET UP THE PINECONE CLIENT + INDEX
+
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "doc-rag")
 
@@ -23,7 +25,6 @@ PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "doc-rag")
 pc = Pinecone(api_key=PINECONE_API_KEY)
 
 # Create the index if it doesn't already exist.
-# ServerlessSpec means Pinecone manages the infrastructure for us.
 existing_indexes = [idx.name for idx in pc.list_indexes()]
 
 if PINECONE_INDEX_NAME not in existing_indexes:
@@ -31,17 +32,17 @@ if PINECONE_INDEX_NAME not in existing_indexes:
         name=PINECONE_INDEX_NAME,
         dimension=EMBEDDING_DIM,
         metric="cosine",
-        spec=ServerlessSpec(
+        spec=ServerlessSpec(  # ServerlessSpec means Pinecone manages the infrastructure for us.
             cloud=os.getenv("PINECONE_CLOUD", "aws"),
             region=os.getenv("PINECONE_REGION", "us-east-1"),
         ),
     )
 
-# Get a handle to the index — all upsert/query calls go through this
+# Get a handle to the index — all update/insert/query calls go through this
 index = pc.Index(PINECONE_INDEX_NAME)
 
 
-# 3. GENERATE EMBEDDINGS
+# GENERATE EMBEDDINGS
 
 def get_embeddings(texts: list[str]) -> list[list[float]]:
 
@@ -69,7 +70,7 @@ def get_query_embedding(query: str) -> list[float]:
     return response.embeddings[0].values
 
 
-# 4. ADD VECTORS TO THE PINECONE INDEX
+# ADD VECTORS TO THE PINECONE INDEX
 
 def add_to_index(embeddings: list[list[float]], document_id: int, chunk_ids: list[int]):
 
@@ -96,7 +97,7 @@ def add_to_index(embeddings: list[list[float]], document_id: int, chunk_ids: lis
         index.upsert(vectors=batch)
 
 
-# 5. SEARCH THE INDEX
+# SEARCH THE INDEX
 
 def search_index(query: str, top_k: int = 5) -> list[dict]:
 
@@ -123,7 +124,7 @@ def search_index(query: str, top_k: int = 5) -> list[dict]:
     return output
 
 
-# 6. REMOVE VECTORS FOR A DELETED DOCUMENT
+# REMOVE VECTORS FOR A DELETED DOCUMENT
 
 def remove_from_index(document_id: int):
 
@@ -132,7 +133,7 @@ def remove_from_index(document_id: int):
     )
 
 
-# 7. PERSIST / LOAD INDEX (NO-OPS FOR PINECONE)
+# PERSIST / LOAD INDEX
 
 def save_index():
     """No-op — Pinecone persists data automatically."""

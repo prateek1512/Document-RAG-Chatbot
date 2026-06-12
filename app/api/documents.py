@@ -13,7 +13,6 @@ from app.services.vector_store_service import get_embeddings, add_to_index, remo
 router = APIRouter()
 
 # POST /documents
-
 # Accepts raw text, chunks it, embeds the chunks, and stores everything.
 
 
@@ -65,8 +64,8 @@ def create_document(body: DocumentCreate):
 
 
 # GET /documents
-
 # Returns every document with its chunks.
+
 @router.get("/documents", response_model=list[DocumentResponse])
 def list_documents():
 
@@ -83,8 +82,8 @@ def list_documents():
 
 
 # DELETE /documents/{document_id}
-
 # Deletes a document, its chunks from MySQL, and its vectors from FAISS.
+
 @router.delete("/documents/{document_id}")
 def delete_document(document_id: int):
 

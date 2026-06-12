@@ -10,11 +10,12 @@ from app.database.connection import Session
 
 # MAIN ENTRY POINT: THE FULL RAG PIPELINE
 # End-to-end RAG pipeline. This is what the /query route calls.
+
 def rag_query(query: str) -> dict:
-    # A) Retrieve relevant chunks
+    # Retrieve relevant chunks
     retrieved_chunks = retrieve_chunks(query, top_k=3)
 
-    # B) Handle the case where no documents have been ingested yet
+    # Handle the case where no documents have been ingested yet
     if not retrieved_chunks:
         return {
             "answer": "No relevant documents found. Please upload documents first.",
@@ -22,10 +23,10 @@ def rag_query(query: str) -> dict:
             "context": [],
         }
 
-    # C) Generate the answer using the LLM
+    # Generate the answer using the LLM
     llm_response = generate_answer(query, retrieved_chunks)
 
-    # D) Attach the retrieved context for transparency
+    # Attach the retrieved context for transparency
     # (so the caller can see exactly which chunks were used)
     llm_response["context"] = [
         {
@@ -45,15 +46,15 @@ def rag_query(query: str) -> dict:
 
 def retrieve_chunks(query: str, top_k: int = 3) -> list[dict]:
 
-    # A) Ask FAISS for the closest chunk vectors to the query.
+    # Ask FAISS for the closest chunk vectors to the query.
     faiss_results = search_index(query, top_k=top_k)
 
     # If FAISS is empty or nothing matched, return early
     if not faiss_results:
         return []
 
-    # B) Now fetch the actual chunk text from the database.
-    #    FAISS only stores vectors, we need MySQL for the readable text.
+    # Now fetch the actual chunk text from the database.
+    # Start MySQL session (for actual document text retrieval)
     db = Session()
 
     try:
@@ -95,7 +96,7 @@ def retrieve_chunks(query: str, top_k: int = 3) -> list[dict]:
 # BUILD THE PROMPT
 
 def build_prompt(query: str, retrieved_chunks: list[dict]) -> str:
-    # A) System instruction
+    # System instruction
     system_instruction = (
         "You are a helpful assistant that answers questions based ONLY on "
         "the provided context. If the context does not contain enough "
@@ -112,7 +113,7 @@ def build_prompt(query: str, retrieved_chunks: list[dict]) -> str:
         "the answer. Do not include any text outside the JSON object."
     )
 
-    # B) Context — the retrieved chunks
+    # Context (the retrieved chunks)
     context_parts = []
     for i, chunk in enumerate(retrieved_chunks, start=1):
         context_parts.append(
@@ -124,7 +125,7 @@ def build_prompt(query: str, retrieved_chunks: list[dict]) -> str:
 
     context_block = "\n".join(context_parts)
 
-    # C) Combine everything into one prompt string
+    # Combine everything into one prompt string
     full_prompt = (
         f"{system_instruction}\n"
         f"=== CONTEXT ===\n{context_block}\n"
@@ -137,19 +138,6 @@ def build_prompt(query: str, retrieved_chunks: list[dict]) -> str:
 # CALL THE GEMINI LLM
 
 def generate_answer(query: str, retrieved_chunks: list[dict]) -> dict:
-    """
-    Send the prompt to Gemini and parse the JSON response.
-
-    We use gemini-2.5-flash because it's fast, cheap, and good enough
-    for RAG answers. The model is instructed to return JSON, so we
-    parse the response text directly.
-
-    Returns a dict like:
-      {
-        "answer": "The capital of France is Paris.",
-        "sources": [{"document_title": "Geography", "chunk_id": 3}]
-      }
-    """
 
     # Build the full prompt from query + retrieved context
     prompt = build_prompt(query, retrieved_chunks)
@@ -163,8 +151,7 @@ def generate_answer(query: str, retrieved_chunks: list[dict]) -> dict:
     # The LLM's text response — should be a JSON string
     raw_text = response.text.strip()
 
-    # Sometimes the LLM wraps JSON in ```json ... ``` markdown fences.
-    # Strip those if present so json.loads() works.
+    # Strip markdoewn fences if present, so we can parse the JSON inside.
     if raw_text.startswith("```"):
         lines = raw_text.split("\n")
         raw_text = "\n".join(lines[1:-1])
@@ -173,7 +160,7 @@ def generate_answer(query: str, retrieved_chunks: list[dict]) -> dict:
     try:
         result = json.loads(raw_text)
     except json.JSONDecodeError:
-        # If the LLM didn't return valid JSON, wrap the raw text as the answer
+        # If the LLM didn't return valid JSON, wraop the raw text as the answer
         result = {
             "answer": raw_text,
             "sources": [],

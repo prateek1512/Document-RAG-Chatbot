@@ -9,7 +9,6 @@ from app.database.connection import Base
 
 # SQLAlchemy Models (these become MySQL tables)
 
-# Represents one uploaded document.
 class Document(Base):
     __tablename__ = "documents"
 
@@ -21,8 +20,6 @@ class Document(Base):
     chunks: Mapped[list["DocumentChunk"]] = relationship(
         back_populates="document", cascade="all, delete-orphan"
     )
-
-# One text chunk belonging to a document.
 
 
 class DocumentChunk(Base):

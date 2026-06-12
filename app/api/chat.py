@@ -19,7 +19,6 @@ router = APIRouter()
 @router.post("/query", response_model=QueryResponse)
 def query_documents(body: QueryRequest):
     result = route_query(body.question)
-
     return result
 
 
@@ -50,7 +49,6 @@ def _parse_llm_json(raw_text: str) -> dict:
 def chat(body: ChatRequest):
     user_message = body.message
 
-    # Classify intent
     intent = classify_intent(user_message)
 
     # These will be populated by whichever branch executes
@@ -79,14 +77,11 @@ def chat(body: ChatRequest):
 
     elif intent == "Knowledge":
 
-        # Retrieve the top 3 most relevant chunks
         chunks = retrieve_chunks(user_message, top_k=3)
 
         if not chunks:
-            # No documents in the system yet
             answer = "No relevant documents found. Please upload documents first."
         else:
-            # Build the retrieved_chunks list with similarity scores
             for c in chunks:
                 retrieved_chunks.append(RetrievedChunkInfo(
                     chunk_id=c["chunk_id"],
@@ -96,14 +91,12 @@ def chat(body: ChatRequest):
                     similarity_score=_l2_distance_to_similarity(c["distance"]),
                 ))
 
-            # Build the prompt and generate the answer
             llm_result = generate_answer(user_message, chunks)
             answer = llm_result.get("answer", "")
             sources = llm_result.get("sources", [])
 
     else:  # intent == "Multi-Step"
 
-        # Decompose into sub-questions
         decompose_prompt = (
             "You are a question decomposer. Break the following complex "
             "question into 2 to 4 simpler, self-contained sub-questions "
@@ -134,7 +127,7 @@ def chat(body: ChatRequest):
             sub_chunks = retrieve_chunks(sub_q, top_k=3)
 
             for c in sub_chunks:
-                # Skip duplicates — the same chunk might match multiple sub-questions
+                # Skip duplicates
                 if c["chunk_id"] not in seen_chunk_ids:
                     seen_chunk_ids.add(c["chunk_id"])
                     all_chunks_raw.append(c)
@@ -157,7 +150,7 @@ def chat(body: ChatRequest):
 
     # BUILD AND RETURN THE RESPONSE
 
-    # Normalise sources to SourceInfo objects (the LLM might return dicts with slightly varying keys)
+    # Normalise sources to SourceInfo objects
     normalised_sources = []
     for s in sources:
         if isinstance(s, dict):

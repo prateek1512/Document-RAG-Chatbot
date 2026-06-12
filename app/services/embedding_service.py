@@ -66,7 +66,7 @@ def add_to_index(embeddings: list[list[float]], document_id: int, chunk_ids: lis
     # Convert to a numpy array of shape (n_chunks, 768), dtype float32
     vectors = np.array(embeddings, dtype=np.float32)
 
-    # Add the vectors to the FAISS index in one batch call
+    # Add the vectors to the FAISS index
     faiss_index.add(vectors)
 
     # Record the metadata for each vector we just added
@@ -81,9 +81,7 @@ def search_index(query: str, top_k: int = 5) -> list[dict]:
     # Embed the user's query
     query_vec = np.array([get_query_embedding(query)], dtype=np.float32)
 
-    # FAISS search returns two arrays:
-    #   distances – the L2 distance to each result
-    #   indices   – the row numbers in the index
+    # FAISS search returns two arrays: L2 distance and row index
     distances, indices = faiss_index.search(query_vec, top_k)
 
     results = []

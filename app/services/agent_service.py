@@ -1,6 +1,5 @@
 # app/services/agent_service.py
-# A lightweight agentic router that classifies user queries by intent
-# and routes them to the right handler.
+# A lightweight agentic router that classifies user queries by intent and routes them to the right handler.
 
 import json
 import time
@@ -14,7 +13,7 @@ def route_query(query: str) -> dict:
     intent = classify_intent(query)
 
     if intent == "Simple":
-        # No retrieval needed — answer from general knowledge
+        # No retrieval needed — just ask Gemini to answer directly
         result = handle_simple(query)
 
     elif intent == "Knowledge":
@@ -25,7 +24,6 @@ def route_query(query: str) -> dict:
         # Complex query — decompose, retrieve, synthesise
         result = handle_multi_step(query)
 
-    # Attach the detected intent so the caller knows which path was taken
     result["intent"] = intent
 
     return result
@@ -122,18 +120,7 @@ def handle_knowledge(query: str) -> dict:
 
 
 def handle_multi_step(query: str) -> dict:
-    """
-    For complex queries, we:
-      1. Ask Gemini to break the query into 2-4 simpler sub-questions
-      2. Run the standard RAG pipeline on each sub-question
-      3. Collect all the partial answers
-      4. Ask Gemini to synthesise them into one final answer
 
-    This is a simple "fan-out / fan-in" pattern — no recursion,
-    no state machine, just a loop and a final merge.
-    """
-
-    # A) Decompose the complex query into sub-questions
     decompose_prompt = (
         "You are a question decomposer. Break the following complex "
         "question into 2 to 4 simpler, self-contained sub-questions "
@@ -162,12 +149,12 @@ def handle_multi_step(query: str) -> dict:
         # If parsing fails, fall back to treating the whole query as one question
         sub_questions = [query]
 
-    # B) Run RAG on each sub-question
+    # Run RAG on each sub-question
     sub_answers = []
     all_context = []
 
     for i, sub_q in enumerate(sub_questions, start=1):
-        # Prevent bursting API rate limits for free tier keys
+        # Prevents bursting API rate limits for free tier keys
         time.sleep(2)
 
         # Reuse the same rag_query() we built earlier
@@ -182,8 +169,7 @@ def handle_multi_step(query: str) -> dict:
         # Collect context from all sub-queries for transparency
         all_context.extend(sub_result.get("context", []))
 
-    # C) Synthesise sub-answers into a final answer
-    # We send all sub-answers to Gemini and ask it to merge them.
+    # Synthesise sub-answers into a final answer
     synthesis_parts = []
     for sa in sub_answers:
         synthesis_parts.append(

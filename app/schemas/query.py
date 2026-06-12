@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 
 class QueryRequest(BaseModel):
-    question: str  # the user's natural-language question
+    question: str
 
 # One source reference in the LLM's response.
 
@@ -33,4 +33,4 @@ class QueryResponse(BaseModel):
     answer: str
     sources: list[SourceInfo] = []
     context: list[ContextInfo] = []
-    intent: str = ""  # which route was taken: Simple, Knowledge, or Multi-Step
+    intent: str = ""  # Simple, Knowledge, or Multi-Step
