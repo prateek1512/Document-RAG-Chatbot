@@ -20,9 +20,9 @@ EMBEDDING_DIM = 768
 faiss_index = faiss.IndexFlatL2(EMBEDDING_DIM)
 
 # We also keep a plain Python list that maps each FAISS row number
-# back to the (document_id, chunk_id) pair so we know which database
-# chunk a search result belongs to.
-# Example: chunk_metadata[0] = {"document_id": 1, "chunk_id": 3}
+# back to the (document_id, chunk_id, source_path) triple so we know
+# which database chunk — and which original file — a search result belongs to.
+# Example: chunk_metadata[0] = {"document_id": 1, "chunk_id": 3, "source_path": "report.pdf"}
 chunk_metadata: list[dict] = []
 
 # Path where we'll save / load the index to disk
@@ -61,7 +61,12 @@ def get_query_embedding(query: str) -> list[float]:
 
 # ADD VECTORS TO THE FAISS INDEX
 
-def add_to_index(embeddings: list[list[float]], document_id: int, chunk_ids: list[int]):
+def add_to_index(
+    embeddings: list[list[float]],
+    document_id: int,
+    chunk_ids: list[int],
+    source_path: str | None = None,
+):
 
     # Convert to a numpy array of shape (n_chunks, 768), dtype float32
     vectors = np.array(embeddings, dtype=np.float32)
@@ -71,7 +76,11 @@ def add_to_index(embeddings: list[list[float]], document_id: int, chunk_ids: lis
 
     # Record the metadata for each vector we just added
     for cid in chunk_ids:
-        chunk_metadata.append({"document_id": document_id, "chunk_id": cid})
+        chunk_metadata.append({
+            "document_id": document_id,
+            "chunk_id": cid,
+            "source_path": source_path,
+        })
 
 
 # SEARCH THE INDEX
@@ -93,6 +102,7 @@ def search_index(query: str, top_k: int = 5) -> list[dict]:
         results.append({
             "document_id": meta["document_id"],
             "chunk_id": meta["chunk_id"],
+            "source_path": meta.get("source_path"),
             "distance": float(dist),
         })
 
@@ -101,7 +111,8 @@ def search_index(query: str, top_k: int = 5) -> list[dict]:
 
 # REMOVE VECTORS FOR A DELETED DOCUMENT
 
-def remove_from_index(document_id: int):
+def remove_from_index(document_id: int = None, source_path: str = None):
+
     global faiss_index, chunk_metadata
 
     if not chunk_metadata:
@@ -110,14 +121,25 @@ def remove_from_index(document_id: int):
     # Reconstruct all current vectors from the index
     all_vectors = faiss_index.reconstruct_n(0, faiss_index.ntotal)
 
-    # Find which rows to keep (everything except the deleted document)
-    keep_mask = [m["document_id"] != document_id for m in chunk_metadata]
+    # Build a keep-mask: True = keep this row, False = delete it
+    def should_keep(m):
+        # If both filters are given, delete only rows matching BOTH
+        if document_id is not None and source_path is not None:
+            return not (m["document_id"] == document_id
+                        and m.get("source_path") == source_path)
+        if document_id is not None:
+            return m["document_id"] != document_id
+        if source_path is not None:
+            return m.get("source_path") != source_path
+        return True  # no filter = keep everything
+
+    keep_mask = [should_keep(m) for m in chunk_metadata]
 
     new_vectors = all_vectors[keep_mask]
     new_metadata = []
-    for m, keep in zip(chunk_metadata, keep_mask):
-        if keep:
-            new_metadata.append(m)
+    for i in range(len(chunk_metadata)):
+        if keep_mask[i]:
+            new_metadata.append(chunk_metadata[i])
 
     # Create a fresh index and re-add the remaining vectors
     faiss_index = faiss.IndexFlatL2(EMBEDDING_DIM)

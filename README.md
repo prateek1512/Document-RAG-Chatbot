@@ -1,59 +1,56 @@
 # Doc RAG
 
-A document question-answering system that lets you upload text documents and ask questions about them. It uses retrieval-augmented generation (RAG) to ground answers in your actual data instead of making things up.
+A document question-answering system that lets you upload documents — or drop files into a folder — and ask questions about them. It uses retrieval-augmented generation (RAG) to ground answers in your actual data instead of making things up.
 
-The backend is built with FastAPI, the frontend with Streamlit, embeddings and generation are handled by Google Gemini, and vector search runs on either FAISS (locally) or Pinecone (in the cloud).
+The backend is built with FastAPI, the frontend with Streamlit, embeddings and generation are handled by Google Gemini, and vector search runs on either FAISS (locally) or Pinecone (in the cloud). A file watcher powered by `watchdog` keeps the vector database automatically synced with a local folder.
 
 Everything is written in plain, procedural Python. No LangChain, no heavy frameworks.
+
+> **New to the project?** Read [`ARCHITECTURE.md`](ARCHITECTURE.md) for a deep dive into how every component works and how data flows through the system.
 
 ---
 
 ## Features
 
-- **Agentic query routing** -- An LLM classifies each question as Simple, Knowledge, or Multi-Step before deciding how to answer it. Simple questions get a direct response. Knowledge questions trigger a single RAG lookup. Multi-step questions are decomposed into sub-questions, each answered independently, then synthesized into a final response.
+- **Agentic query routing** — An LLM classifies each question as Simple, Knowledge, or Multi-Step before deciding how to answer it. Simple questions get a direct response. Knowledge questions trigger a single RAG lookup. Multi-step questions are decomposed into sub-questions, each answered independently, then synthesized into a final response.
 
-- **Document ingestion** -- Upload documents through the UI or API. The system splits text into overlapping token-based chunks, generates embeddings via Gemini, and indexes them for retrieval.
+- **Document ingestion** — Upload documents through the UI, the API, or simply drop files into the `./data` folder. The system splits text into overlapping token-based chunks, generates embeddings via Gemini, and indexes them for retrieval.
 
-- **Swappable vector store** -- Switch between local FAISS and cloud-hosted Pinecone by changing one environment variable. The rest of the code stays the same.
+- **Live file syncing** — A `watchdog`-based folder watcher monitors `./data` for new, modified, or deleted files. Changes are automatically reflected in both MySQL and the vector store — no manual re-upload needed.
 
-- **Chat interface** -- A Streamlit frontend with intent badges, expandable retrieved chunks, similarity scores, and cited sources.
+- **Multi-format support** — Reads `.pdf`, `.csv`, `.json`, `.docx`, `.txt`, and `.md` files out of the box.
+
+- **Change detection** — SHA-256 content hashing prevents unnecessary re-embedding when a file hasn't actually changed.
+
+- **Swappable vector store** — Switch between local FAISS and cloud-hosted Pinecone by changing one environment variable. The rest of the code stays the same.
+
+- **Chat interface** — A Streamlit frontend with intent badges, expandable retrieved chunks, similarity scores, and cited sources.
 
 ---
 
 ## Architecture
 
 ```
-                    +----------------+
-                    |   Streamlit    |
-                    |   Frontend     |
-                    +-------+--------+
-                            | HTTP
-                    +-------v--------+
-                    |    FastAPI     |
-                    |    Backend     |
-                    +--+-----+----+-+
-                       |     |    |
-              +--------+     |    +--------+
-              v              v             v
-        +-----------+  +-----------+  +-----------+
-        |   MySQL   |  |  FAISS /  |  |  Google   |
-        |  (text)   |  | Pinecone  |  |  Gemini   |
-        |           |  | (vectors) |  |   (LLM)   |
-        +-----------+  +-----------+  +-----------+
+                          ┌────────────────┐
+                          │   Streamlit    │
+                          │   Frontend     │
+                          └───────┬────────┘
+                                  │ HTTP
+                          ┌───────▼────────┐      ┌──────────────────┐
+                          │    FastAPI     │      │  Folder Watcher  │
+                          │    Backend     │      │  (watchdog)      │
+                          └──┬─────┬────┬──┘      └───────┬──────────┘
+                             │     │    │                  │
+                    ┌────────┘     │    └────────┐        │
+                    ▼              ▼             ▼        ▼
+              ┌──────────┐  ┌──────────┐  ┌──────────┐
+              │  MySQL   │  │ FAISS /  │  │  Google  │
+              │  (text)  │  │ Pinecone │  │  Gemini  │
+              │          │  │(vectors) │  │  (LLM)   │
+              └──────────┘  └──────────┘  └──────────┘
 ```
 
----
-
-## Components
-
-| Component | What it does |
-|---|---|
-| MySQL | Stores document text, chunk text, and metadata (titles, timestamps, foreign keys) |
-| FAISS / Pinecone | Stores 768-dimensional embedding vectors and runs similarity search against user queries |
-| Gemini Embedding API | Converts text chunks and queries into embedding vectors (`gemini-embedding-001`) |
-| Gemini LLM | Classifies query intent and generates answers from retrieved context (`gemini-2.5-flash`) |
-| FastAPI | Serves the REST API that the frontend (and any external client) talks to |
-| Streamlit | Provides the browser-based chat UI for uploading documents and asking questions |
+For a detailed walkthrough of every component, data flow, and design decision, see [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ---
 
@@ -62,6 +59,8 @@ Everything is written in plain, procedural Python. No LangChain, no heavy framew
 ```
 doc-rag/
 ├── main.py                           # FastAPI entry point, creates tables, loads index
+├── folder_watcher.py                 # Watchdog script — monitors ./data for file changes
+│
 ├── app/
 │   ├── api/
 │   │   ├── documents.py              # POST/GET/DELETE /documents endpoints
@@ -72,7 +71,8 @@ doc-rag/
 │   │   ├── pinecone_service.py       # Pinecone alternative to FAISS
 │   │   ├── vector_store_service.py   # Reads VECTOR_STORE from .env, imports the right backend
 │   │   ├── rag_service.py            # RAG pipeline: retrieve chunks, build prompt, generate answer
-│   │   └── agent_service.py          # Intent classification and query routing
+│   │   ├── agent_service.py          # Intent classification and query routing
+│   │   └── sync_service.py           # handle_new/modified/deleted_file for live sync
 │   ├── models/
 │   │   └── document.py               # SQLAlchemy models (Document, DocumentChunk)
 │   ├── schemas/
@@ -82,10 +82,14 @@ doc-rag/
 │   ├── database/
 │   │   └── connection.py             # SQLAlchemy engine, session factory, base class
 │   └── utils/
-│       └── chunking.py               # Token-based text splitting with overlap
+│       ├── chunking.py               # Token-based text splitting with overlap
+│       └── file_reader.py            # Multi-format text extraction (PDF, CSV, JSON, DOCX, TXT)
+│
 ├── streamlit_app/
 │   └── app.py                        # Streamlit chat UI
-├── data/                             # Sample data files
+├── scripts/
+│   └── file_sync_demo.py             # Demo script showing the sync lifecycle
+├── data/                             # Drop files here — the watcher auto-ingests them
 ├── tests/                            # Tests
 └── .env                              # API keys and config (not committed)
 ```
@@ -129,7 +133,19 @@ GEMINI_API_KEY=your-gemini-api-key
 uv run uvicorn main:app --reload
 ```
 
-### 5. Start the frontend
+### 5. Start the folder watcher (optional)
+
+In a second terminal:
+
+```bash
+uv run python folder_watcher.py
+```
+
+This watches `./data` for file changes. Drop a `.pdf`, `.csv`, `.json`, `.docx`, or `.txt` file in and it will be automatically ingested.
+
+### 6. Start the frontend
+
+In a third terminal:
 
 ```bash
 uv run streamlit run streamlit_app/app.py
@@ -156,7 +172,8 @@ curl -X POST http://localhost:8000/documents \
   -H "Content-Type: application/json" \
   -d '{
     "title": "Company Policy",
-    "content": "Our refund policy allows returns within 30 days..."
+    "content": "Our refund policy allows returns within 30 days...",
+    "source_path": "company_policy.txt"
   }'
 ```
 
@@ -166,6 +183,28 @@ curl -X POST http://localhost:8000/documents \
 curl -X POST http://localhost:8000/chat \
   -H "Content-Type: application/json" \
   -d '{"message": "What is the refund policy?"}'
+```
+
+---
+
+## Live File Syncing
+
+The folder watcher monitors `./data` and automatically:
+
+| Event | What happens |
+|---|---|
+| File created | Text extracted → chunked → embedded → saved to MySQL + vector DB |
+| File modified | Content hash compared → if changed, old version deleted, new version ingested |
+| File deleted | Chunks removed from MySQL (cascade) + vectors removed from vector DB |
+
+Supported file types: `.pdf`, `.csv`, `.json`, `.docx`, `.txt`, `.md`
+
+```bash
+# Example: drop a file in and it's instantly searchable
+cp ~/Documents/quarterly_report.pdf ./data/
+
+# Remove it and the vectors are cleaned up automatically
+rm ./data/quarterly_report.pdf
 ```
 
 ---
@@ -205,5 +244,7 @@ Restart the server after changing the vector store.
 | Vector Search | FAISS (local) / Pinecone (cloud) |
 | Embeddings | Google Gemini `gemini-embedding-001` (768-dim) |
 | LLM | Google Gemini `gemini-2.5-flash` |
+| File Parsing | pdfplumber, python-docx, csv, json (stdlib) |
 | Tokenizer | tiktoken (`cl100k_base`) |
+| File Watching | watchdog |
 | Package Manager | uv |

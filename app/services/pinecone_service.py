@@ -72,7 +72,12 @@ def get_query_embedding(query: str) -> list[float]:
 
 # ADD VECTORS TO THE PINECONE INDEX
 
-def add_to_index(embeddings: list[list[float]], document_id: int, chunk_ids: list[int]):
+def add_to_index(
+    embeddings: list[list[float]],
+    document_id: int,
+    chunk_ids: list[int],
+    source_path: str | None = None,
+):
 
     # Build the list of vectors in Pinecone's format:
     # Each item is a dict with id, values (the vector), and metadata.
@@ -81,12 +86,15 @@ def add_to_index(embeddings: list[list[float]], document_id: int, chunk_ids: lis
     for embedding, chunk_id in zip(embeddings, chunk_ids):
         vector_id = f"doc_{document_id}_chunk_{chunk_id}"
 
+        # source_path is stored as Pinecone metadata.
+        # This lets us do filter={"source_path": {"$eq": "report.pdf"}} to find or delete all vectors from a specific file.
         vectors_to_upsert.append({
             "id": vector_id,
             "values": embedding,
             "metadata": {
                 "document_id": document_id,
                 "chunk_id": chunk_id,
+                "source_path": source_path or "",
             },
         })
 
@@ -117,6 +125,7 @@ def search_index(query: str, top_k: int = 5) -> list[dict]:
         output.append({
             "document_id": int(match.metadata["document_id"]),
             "chunk_id": int(match.metadata["chunk_id"]),
+            "source_path": match.metadata.get("source_path"),  # NEW
             # convert score → distance
             "distance": round(1.0 - match.score, 6),
         })
@@ -126,11 +135,25 @@ def search_index(query: str, top_k: int = 5) -> list[dict]:
 
 # REMOVE VECTORS FOR A DELETED DOCUMENT
 
-def remove_from_index(document_id: int):
+def remove_from_index(document_id: int = None, source_path: str = None):
 
-    index.delete(
-        filter={"document_id": {"$eq": document_id}},
-    )
+    # Build the filter dict based on which arguments were provided
+    conditions = {}
+    if document_id is not None:
+        conditions["document_id"] = {"$eq": document_id}
+    if source_path is not None:
+        conditions["source_path"] = {"$eq": source_path}
+
+    if not conditions:
+        return  # nothing to delete
+
+    # If multiple conditions, combine with $and
+    if len(conditions) > 1:
+        pinecone_filter = {"$and": [{k: v} for k, v in conditions.items()]}
+    else:
+        pinecone_filter = conditions
+
+    index.delete(filter=pinecone_filter)
 
 
 # PERSIST / LOAD INDEX

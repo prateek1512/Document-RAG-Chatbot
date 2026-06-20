@@ -1,6 +1,7 @@
 # app/api/documents.py
 # API endpoints for managing documents.
 
+import hashlib
 from fastapi import APIRouter, HTTPException
 from app.models.document import Document, DocumentChunk
 from sqlalchemy.orm import joinedload
@@ -25,36 +26,54 @@ def create_document(body: DocumentCreate):
         text_chunks = chunk_text(
             body.content, max_tokens=500, overlap_tokens=50)
 
-        # 3. Create the Document row in MySQL
-        new_doc = Document(title=body.title)
+        # 3. compute a SHA-256 hash of the raw content
+        content_hash = hashlib.sha256(body.content.encode("utf-8")).hexdigest()
+
+        # 4. Create the Document row in MySQL (now with source_path + hash)
+        new_doc = Document(
+            title=body.title,
+            source_path=body.source_path,
+            content_hash=content_hash,
+        )
         db.add(new_doc)
         db.commit()
         db.refresh(new_doc)  # now new_doc.id is available
 
-        # 4. Create a DocumentChunk row for each text chunk
+        # 5. Create a DocumentChunk row for each text chunk
+        #    source_path is denormalised onto every chunk so the
+        #    vector store can filter by filename without a SQL JOIN.
         chunk_objects = []
         for text in text_chunks:
-            chunk_obj = DocumentChunk(document_id=new_doc.id, chunk_text=text)
+            chunk_obj = DocumentChunk(
+                document_id=new_doc.id,
+                chunk_text=text,
+                source_path=body.source_path,
+            )
             db.add(chunk_obj)
             chunk_objects.append(chunk_obj)
 
         db.commit()
 
-        # 5. Refresh each chunk so that chunk_id is populated
+        # 6. Refresh each chunk so that chunk_id is populated
         for chunk_obj in chunk_objects:
             db.refresh(chunk_obj)
 
-        # 6. Generate embeddings for all chunks in one API call to Gemini
+        # 7. Generate embeddings for all chunks in one API call to Gemini
         embeddings = get_embeddings(text_chunks)
 
-        # 7. Insert the embedding vectors into the FAISS index
+        # 8. Insert the embedding vectors into the vector index
         chunk_ids = [c.chunk_id for c in chunk_objects]
-        add_to_index(embeddings, document_id=new_doc.id, chunk_ids=chunk_ids)
+        add_to_index(
+            embeddings,
+            document_id=new_doc.id,
+            chunk_ids=chunk_ids,
+            source_path=body.source_path,
+        )
 
-        # 8. Persist the updated FAISS index to disk
+        # 9. Persist the updated FAISS index to disk
         save_index()
 
-        # 9. Reload the document with its chunks for the response
+        # 10. Reload the document with its chunks for the response
         db.refresh(new_doc)
         _ = new_doc.chunks  # Load chunks before session closes
         return new_doc
@@ -101,8 +120,9 @@ def delete_document(document_id: int):
         db.delete(doc)
         db.commit()
 
-        # 4. Remove its vectors from the FAISS index
-        remove_from_index(document_id)
+        # 4. Remove its vectors from the vector index
+        #    Pass both document_id and source_path for precise cleanup
+        remove_from_index(document_id=document_id, source_path=doc.source_path)
         save_index()
 
         return {"message": f"Document {document_id} deleted"}
