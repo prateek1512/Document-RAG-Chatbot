@@ -31,13 +31,13 @@ This document explains how every piece of Doc RAG fits together — from the mom
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                         USER INTERFACES                            │
+│                         USER INTERFACES                             │
 │                                                                     │
 │   ┌──────────────┐    ┌──────────────┐    ┌──────────────────────┐  │
 │   │  Streamlit   │    │  curl / API  │    │  File drop into      │  │
 │   │  Chat UI     │    │  clients     │    │  ./data folder       │  │
 │   └──────┬───────┘    └──────┬───────┘    └──────────┬───────────┘  │
-│          │ HTTP              │ HTTP                   │ filesystem   │
+│          │ HTTP              │ HTTP                   │ filesystem  │
 └──────────┼───────────────────┼───────────────────────┼──────────────┘
            │                   │                       │
            ▼                   ▼                       ▼
@@ -77,8 +77,8 @@ This document explains how every piece of Doc RAG fits together — from the mom
      │  │ Chunk    │    │ 768-dim       │    │ Embed +  │ │
      │  │ rows     │    │ vectors       │    │ Generate │ │
      │  └──────────┘    └───────────────┘    └──────────┘ │
-     │                    DATA STORES                      │
-     └─────────────────────────────────────────────────────┘
+     │                    DATA STORES                     │
+     └────────────────────────────────────────────────────┘
 ```
 
 The system has three user-facing entry points:
@@ -128,12 +128,12 @@ When a user asks a question, it flows through the agentic router:
 
 ```
 ┌───────────┐     ┌──────────────┐     ┌────────────────────────────────────┐
-│  User     │     │   Intent     │     │          Handler                  │
+│  User     │     │   Intent     │     │          Handler                   │
 │  Question │────▶│  Classifier  │────▶│                                    │
-│           │     │  (Gemini)    │     │  Simple ──▶ Direct LLM answer     │
-└───────────┘     └──────────────┘     │  Knowledge ──▶ RAG pipeline      │
-                                       │  Multi-Step ──▶ Decompose → RAG  │
-                                       │                  → Synthesize     │
+│           │     │  (Gemini)    │     │  Simple ──▶ Direct LLM answer      │
+└───────────┘     └──────────────┘     │  Knowledge ──▶ RAG pipeline        │
+                                       │  Multi-Step ──▶ Decompose → RAG    │
+                                       │                  → Synthesize      │
                                        └────────────────────────────────────┘
 ```
 
@@ -172,14 +172,14 @@ The folder watcher creates a feedback loop between the filesystem and the databa
 │               ./data folder                      │
 │                                                  │
 │   report.pdf   handbook.json   policy.docx       │
-│       │              │              │             │
-└───────┼──────────────┼──────────────┼─────────────┘
+│       │              │              │            │
+└───────┼──────────────┼──────────────┼────────────┘
         │              │              │
         │    watchdog Observer (polling thread)
         │              │              │
         ▼              ▼              ▼
 ┌──────────────────────────────────────────────────┐
-│             SyncHandler events                    │
+│             SyncHandler events                   │
 │                                                  │
 │   on_created  → handle_new_file()                │
 │   on_modified → handle_modified_file()           │
@@ -188,8 +188,8 @@ The folder watcher creates a feedback loop between the filesystem and the databa
         │              │              │
         ▼              ▼              ▼
    ┌─────────┐   ┌─────────┐   ┌─────────┐
-   │  MySQL  │   │ Vector  │   │  Gemini  │
-   │         │   │  Store  │   │   API    │
+   │  MySQL  │   │ Vector  │   │  Gemini │
+   │         │   │  Store  │   │   API   │
    └─────────┘   └─────────┘   └─────────┘
 ```
 
@@ -411,10 +411,10 @@ The frontend communicates exclusively via the `POST /chat` endpoint.
 ┌───────────────────────────────────┐       ┌───────────────────────────────────┐
 │           documents               │       │        document_chunks            │
 ├───────────────────────────────────┤       ├───────────────────────────────────┤
-│ id           INT (PK, auto)       │       │ chunk_id      INT (PK, auto)     │
-│ title        VARCHAR(255)         │──────▶│ document_id   INT (FK → doc.id)  │
-│ source_path  VARCHAR(1024) [idx]  │       │ chunk_text    TEXT               │
-│ content_hash VARCHAR(64)          │       │ source_path   VARCHAR(1024) [idx]│
+│ id           INT (PK, auto)       │       │ chunk_id      INT (PK, auto)      │
+│ title        VARCHAR(255)         │──────▶│ document_id   INT (FK → doc.id)   │
+│ source_path  VARCHAR(1024) [idx]  │       │ chunk_text    TEXT                │
+│ content_hash VARCHAR(64)          │       │ source_path   VARCHAR(1024) [idx] │
 │ created_at   DATETIME             │       └───────────────────────────────────┘
 │ updated_at   DATETIME             │
 └───────────────────────────────────┘
