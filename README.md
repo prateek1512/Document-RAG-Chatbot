@@ -28,32 +28,6 @@ Everything is written in plain, procedural Python. No LangChain, no heavy framew
 
 ---
 
-## Architecture
-
-```
-                          ┌────────────────┐
-                          │   Streamlit    │
-                          │   Frontend     │
-                          └───────┬────────┘
-                                  │ HTTP
-                          ┌───────▼────────┐      ┌──────────────────┐
-                          │    FastAPI     │      │  Folder Watcher  │
-                          │    Backend     │      │  (watchdog)      │
-                          └──┬─────┬────┬──┘      └───────┬──────────┘
-                             │     │    │                  │
-                    ┌────────┘     │    └────────┐        │
-                    ▼              ▼             ▼        ▼
-              ┌──────────┐  ┌──────────┐  ┌──────────┐
-              │  MySQL   │  │ FAISS /  │  │  Google  │
-              │  (text)  │  │ Pinecone │  │  Gemini  │
-              │          │  │(vectors) │  │  (LLM)   │
-              └──────────┘  └──────────┘  └──────────┘
-```
-
-For a detailed walkthrough of every component, data flow, and design decision, see [`ARCHITECTURE.md`](ARCHITECTURE.md).
-
----
-
 ## Project Structure
 
 ```
