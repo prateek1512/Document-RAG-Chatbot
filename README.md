@@ -62,14 +62,7 @@ doc-rag/
 ├── streamlit_app/
 │   └── app.py                        # Streamlit chat UI
 │
-├── scripts/
-│   └── file_sync_demo.py             # Demo script showing the sync lifecycle
 ├── data/                             # Drop files here — the watcher auto-ingests them
-├── tests/                            # Tests
-│
-│
-├── data/                             # Drop files here — the watcher auto-ingests them
-│
 │
 └── .env                              # API keys and config (not committed)
 ```
