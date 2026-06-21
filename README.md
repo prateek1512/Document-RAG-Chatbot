@@ -83,18 +83,12 @@ doc-rag/
 - Python 3.12+
 - MySQL
 - A Google Gemini API key ([get one here](https://aistudio.google.com/apikey))
-- **(Optional)** A Pinecone API key and Index Name, if you plan to use Pinecone instead of the local FAISS vector store.
 
 ### 1. Install dependencies
 
 ```bash
+uv sync
 brew install uv mysql
-brew services start mysql
-```
-
-### 2. Create the database
-
-=======
 ```
 
 ### 2. Start MySQL and create the database
@@ -114,10 +108,6 @@ mysql -u root -p -e "CREATE DATABASE doc_rag;"
 Create a `.env` file in the project root:
 
 ```env
-VECTOR_STORE=faiss
-DATABASE_URL=mysql+pymysql://root:yourpassword@localhost:3306/doc_rag
-GEMINI_API_KEY=your-gemini-api-key
-
 # Vector Store config (faiss or pinecone)
 VECTOR_STORE=faiss
 
