@@ -30,57 +30,6 @@ This document explains how every piece of Doc RAG fits together — from the mom
 ## System Overview
 
 ```
-<<<<<<< HEAD
-┌─────────────────────────────────────────────────────────────────────┐
-│                         USER INTERFACES                             │
-│                                                                     │
-│   ┌──────────────┐    ┌──────────────┐    ┌──────────────────────┐  │
-│   │  Streamlit   │    │  curl / API  │    │  File drop into      │  │
-│   │  Chat UI     │    │  clients     │    │  ./data folder       │  │
-│   └──────┬───────┘    └──────┬───────┘    └──────────┬───────────┘  │
-│          │ HTTP              │ HTTP                   │ filesystem  │
-└──────────┼───────────────────┼───────────────────────┼──────────────┘
-           │                   │                       │
-           ▼                   ▼                       ▼
-┌──────────────────────┐              ┌────────────────────────────┐
-│     FastAPI Server   │              │    Folder Watcher          │
-│     (main.py)        │              │    (folder_watcher.py)     │
-│                      │              │                            │
-│  ┌────────────────┐  │              │  watchdog Observer thread  │
-│  │ /documents     │  │              │         │                  │
-│  │ /chat          │  │              │         ▼                  │
-│  │ /query         │  │              │  SyncHandler               │
-│  └───────┬────────┘  │              │   on_created → new_file    │
-│          │           │              │   on_modified → mod_file   │
-│          ▼           │              │   on_deleted → del_file    │
-│  ┌────────────────┐  │              └─────────────┬──────────────┘
-│  │ Agent Service  │  │                            │
-│  │ (classify →    │  │                            │
-│  │  route)        │  │                            │
-│  └───────┬────────┘  │                            │
-│          │           │                            │
-│          ▼           │                            │
-│  ┌────────────────┐  │              ┌─────────────▼──────────────┐
-│  │ RAG Service    │  │              │     Sync Service           │
-│  │ (retrieve →    │  │              │  handle_new_file()         │
-│  │  prompt →      │◄─┼──────────────│  handle_modified_file()    │
-│  │  generate)     │  │              │  handle_deleted_file()     │
-│  └───────┬────────┘  │              └─────────────┬──────────────┘
-│          │           │                            │
-└──────────┼───────────┘                            │
-           │                                        │
-     ┌─────┼────────────────────────────────────────┼─────┐
-     │     ▼                                        ▼     │
-     │  ┌──────────┐    ┌───────────────┐    ┌──────────┐ │
-     │  │  MySQL   │    │ FAISS or      │    │  Gemini  │ │
-     │  │          │    │ Pinecone      │    │  API     │ │
-     │  │ Document │    │               │    │          │ │
-     │  │ Chunk    │    │ 768-dim       │    │ Embed +  │ │
-     │  │ rows     │    │ vectors       │    │ Generate │ │
-     │  └──────────┘    └───────────────┘    └──────────┘ │
-     │                    DATA STORES                     │
-     └────────────────────────────────────────────────────┘
-=======
    ┌──────────────────┐       ┌──────────────────┐       ┌──────────────────┐
    │                  │       │                  │       │                  │
    │  Streamlit UI    │       │  API Clients     │       │  File Drop       │
@@ -125,7 +74,6 @@ This document explains how every piece of Doc RAG fits together — from the mom
    │  │                  │   │                  │   │                   │   │
    │  └──────────────────┘   └──────────────────┘   └───────────────────┘   │
    └────────────────────────────────────────────────────────────────────────┘
->>>>>>> 81c1c29 (fixed streamlit frontend)
 ```
 
 The system has three user-facing entry points:
@@ -222,11 +170,7 @@ The folder watcher creates a feedback loop between the filesystem and the databa
 │       │              │              │            │
 └───────┼──────────────┼──────────────┼────────────┘
         │              │              │
-<<<<<<< HEAD
-        │    watchdog Observer (polling thread)
-=======
         │       watchdog Observer     │
->>>>>>> 81c1c29 (fixed streamlit frontend)
         │              │              │
         ▼              ▼              ▼
 ┌──────────────────────────────────────────────────┐
