@@ -44,6 +44,7 @@ with st.sidebar:
     st.subheader("Upload Document")
 
     uploaded_file = st.file_uploader(
+<<<<<<< HEAD
         "Upload a JSON document",
         type=["json"],
     )
@@ -100,6 +101,61 @@ with st.sidebar:
                 f"Uploaded **{manual_title}** — {n_chunks} chunks created")
         else:
             st.error(f"Upload failed: {resp.text}")
+=======
+        "Upload a document",
+        type=["json", "pdf", "csv", "docx", "txt", "md"],
+    )
+    file_submit = st.button("Upload File", use_container_width=True)
+
+
+
+    # Handle file upload
+    if file_submit and uploaded_file is not None:
+        import tempfile
+        import os
+        from app.utils.file_reader import extract_text_from_file
+
+        with st.spinner("Extracting text & uploading..."):
+            # Save uploaded file to a temporary file
+            # so extract_text_from_file can read it from disk
+            ext = os.path.splitext(uploaded_file.name)[1]
+            with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+                tmp.write(uploaded_file.getvalue())
+                tmp_path = tmp.name
+
+            try:
+                # Extract text using our robust file reader
+                content = extract_text_from_file(tmp_path)
+                title = uploaded_file.name
+
+                if not content.strip():
+                    st.error("No text could be extracted from this file.")
+                else:
+                    resp = requests.post(
+                        f"{API_BASE}/documents",
+                        json={
+                            "title": title,
+                            "content": content,
+                            "source_path": uploaded_file.name
+                        },
+                        timeout=60,
+                    )
+
+                    if resp.status_code == 200:
+                        result = resp.json()
+                        n_chunks = len(result.get("chunks", []))
+                        st.success(
+                            f"Uploaded **{title}** — {n_chunks} chunks created")
+                    else:
+                        st.error(f"Upload failed: {resp.text}")
+
+            except Exception as e:
+                st.error(f"Failed to read file: {str(e)}")
+            finally:
+                os.remove(tmp_path)
+
+
+>>>>>>> 81c1c29 (fixed streamlit frontend)
 
     st.divider()
 

@@ -19,7 +19,11 @@ class Document(Base):
     # file-tracking columns for live sync
     # The original filename or path of the uploaded file.
     source_path: Mapped[str | None] = mapped_column(
+<<<<<<< HEAD
         String(1024), nullable=True, index=True)
+=======
+        String(512), nullable=True, index=True)
+>>>>>>> 81c1c29 (fixed streamlit frontend)
 
     # SHA-256 hash of the raw file content at ingestion time.
     content_hash: Mapped[str | None] = mapped_column(
@@ -46,6 +50,10 @@ class DocumentChunk(Base):
         Integer, ForeignKey("documents.id"), nullable=False)
     chunk_text: Mapped[str] = mapped_column(Text, nullable=False)
     source_path: Mapped[str | None] = mapped_column(
+<<<<<<< HEAD
         String(1024), nullable=True, index=True)
+=======
+        String(512), nullable=True, index=True)
+>>>>>>> 81c1c29 (fixed streamlit frontend)
 
     document: Mapped["Document"] = relationship(back_populates="chunks")

@@ -61,10 +61,16 @@ doc-rag/
 │
 ├── streamlit_app/
 │   └── app.py                        # Streamlit chat UI
+<<<<<<< HEAD
 ├── scripts/
 │   └── file_sync_demo.py             # Demo script showing the sync lifecycle
 ├── data/                             # Drop files here — the watcher auto-ingests them
 ├── tests/                            # Tests
+=======
+│
+├── data/                             # Drop files here — the watcher auto-ingests them
+│
+>>>>>>> 81c1c29 (fixed streamlit frontend)
 └── .env                              # API keys and config (not committed)
 ```
 
@@ -77,16 +83,33 @@ doc-rag/
 - Python 3.12+
 - MySQL
 - A Google Gemini API key ([get one here](https://aistudio.google.com/apikey))
+<<<<<<< HEAD
+=======
+- **(Optional)** A Pinecone API key and Index Name, if you plan to use Pinecone instead of the local FAISS vector store.
+>>>>>>> 81c1c29 (fixed streamlit frontend)
 
 ### 1. Install dependencies
 
 ```bash
 brew install uv mysql
+<<<<<<< HEAD
 brew services start mysql
 ```
 
 ### 2. Create the database
 
+=======
+```
+
+### 2. Start MySQL and create the database
+
+First, ensure your MySQL service is running. If you are using Homebrew on macOS:
+```bash
+brew services start mysql
+```
+
+Then, create the database:
+>>>>>>> 81c1c29 (fixed streamlit frontend)
 ```bash
 mysql -u root -p -e "CREATE DATABASE doc_rag;"
 ```
@@ -96,9 +119,26 @@ mysql -u root -p -e "CREATE DATABASE doc_rag;"
 Create a `.env` file in the project root:
 
 ```env
+<<<<<<< HEAD
 VECTOR_STORE=faiss
 DATABASE_URL=mysql+pymysql://root:yourpassword@localhost:3306/doc_rag
 GEMINI_API_KEY=your-gemini-api-key
+=======
+# Vector Store config (faiss or pinecone)
+VECTOR_STORE=faiss
+
+# Database connection
+DATABASE_URL=mysql+pymysql://root:yourpassword@localhost:3306/doc_rag
+
+# Gemini API
+GEMINI_API_KEY=your-gemini-api-key
+
+# Pinecone config (only required if VECTOR_STORE=pinecone)
+PINECONE_API_KEY=your-pinecone-api-key
+PINECONE_INDEX_NAME=doc-rag-index
+PINECONE_CLOUD=desired-cloud-provider-name
+PINECONE_REGION=desired-region-name
+>>>>>>> 81c1c29 (fixed streamlit frontend)
 ```
 
 ### 4. Start the backend
