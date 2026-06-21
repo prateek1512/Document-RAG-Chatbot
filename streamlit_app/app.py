@@ -44,64 +44,6 @@ with st.sidebar:
     st.subheader("Upload Document")
 
     uploaded_file = st.file_uploader(
-<<<<<<< HEAD
-        "Upload a JSON document",
-        type=["json"],
-    )
-    json_submit = st.button("Upload JSON File", use_container_width=True)
-
-    # Optional manual input
-    with st.expander("Or paste text manually"):
-        manual_title = st.text_input("Document title")
-        manual_content = st.text_area("Document content", height=150)
-        manual_submit = st.button("Upload text", use_container_width=True)
-
-    # Handle JSON file upload
-    if json_submit and uploaded_file is not None:
-        try:
-            doc_data = json.load(uploaded_file)
-            title = doc_data.get("title", uploaded_file.name)
-            content = doc_data.get("content", "")
-
-            if not content:
-                st.error(
-                    "JSON must have a 'content' field with the document text.")
-            else:
-                with st.spinner("Uploading & chunking..."):
-                    resp = requests.post(
-                        f"{API_BASE}/documents",
-                        json={"title": title, "content": content},
-                        timeout=60,
-                    )
-
-                if resp.status_code == 200:
-                    result = resp.json()
-                    n_chunks = len(result.get("chunks", []))
-                    st.success(
-                        f"Uploaded **{title}** — {n_chunks} chunks created")
-                else:
-                    st.error(f"Upload failed: {resp.text}")
-
-        except json.JSONDecodeError:
-            st.error("Invalid JSON file.")
-
-    # Handle manual text upload
-    if manual_submit and manual_title and manual_content:
-        with st.spinner("Uploading & chunking..."):
-            resp = requests.post(
-                f"{API_BASE}/documents",
-                json={"title": manual_title, "content": manual_content},
-                timeout=60,
-            )
-
-        if resp.status_code == 200:
-            result = resp.json()
-            n_chunks = len(result.get("chunks", []))
-            st.success(
-                f"Uploaded **{manual_title}** — {n_chunks} chunks created")
-        else:
-            st.error(f"Upload failed: {resp.text}")
-=======
         "Upload a document",
         type=["json", "pdf", "csv", "docx", "txt", "md"],
     )
@@ -154,8 +96,6 @@ with st.sidebar:
             finally:
                 os.remove(tmp_path)
 
-
->>>>>>> 81c1c29 (fixed streamlit frontend)
 
     st.divider()
 
